@@ -1,0 +1,23 @@
+{
+  "slug": "emare_dashboard",
+  "name": "Emare Dashboard",
+  "github_repo": "emraresoftware/emare-dashboard",
+  "branch": "main",
+  "dc": "local",
+  "server_host": null,
+  "server_ssh_port": 22,
+  "remote_path": "/opt/emare-dashboard",
+  "stack": "node-nextjs",
+  "port": 8322,
+  "domain": "",
+  "deploy_commands": [
+    "cd /opt/emare-dashboard",
+    "git pull origin main",
+    "npm ci --silent",
+    "npm run build",
+    "pm2 restart emare_dashboard || pm2 start ecosystem.config.js"
+  ],
+  "restart_command": "pm2 status emare_dashboard",
+  "auto_deploy_on_push": false,
+  "health_check_url": null
+}
