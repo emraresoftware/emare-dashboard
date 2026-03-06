@@ -18,6 +18,6 @@
     "pm2 restart emare_dashboard || pm2 start ecosystem.config.js"
   ],
   "restart_command": "pm2 status emare_dashboard",
-  "auto_deploy_on_push": false,
+  "auto_deploy_on_push": true,
   "health_check_url": null
 }
