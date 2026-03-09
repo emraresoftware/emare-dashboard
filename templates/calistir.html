@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Toplu Çalıştır — Emare Dashboard{% endblock %}
+{% block page_title %}<i class="fas fa-terminal me-2" style="color:var(--brand)"></i>Toplu <span class="highlight">Çalıştır</span>{% endblock %}
+{% block page_subtitle %}Tüm Dervişlerde aynı komutu paralel çalıştır, sonuçları karşılaştır{% endblock %}
+
+{% block head %}
+<style>
+    .cmd-chip {
+        display:inline-block; padding:.3rem .8rem; border-radius:20px; font-size:.78rem; font-weight:600;
+        background:#f1f5f9; border:1.5px solid #e2e8f0; cursor:pointer; transition:all .18s; color:#475569;
+        white-space:nowrap; user-select:none;
+    }
+    .cmd-chip:hover { background:#dbeafe; border-color:var(--brand); color:var(--brand); }
+    .cmd-chip.active { background:linear-gradient(135deg,var(--brand),var(--accent)); color:#fff; border-color:transparent; }
+
+    .form-card { background:#fff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.04); margin-bottom:1rem; }
+    .form-card .fc-header { padding:.9rem 1.4rem; background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; font-weight:700; font-size:.92rem; display:flex; align-items:center; gap:.5rem; }
+    .form-card .fc-body { padding:1.2rem 1.4rem; }
+
+    /* Dervish listesi */
+    .derv-table-wrap { max-height:320px; overflow-y:auto; border-radius:10px; border:1px solid #e2e8f0; }
+    .derv-table { width:100%; border-collapse:collapse; }
+    .derv-table th { position:sticky; top:0; background:#f8fafc; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#64748b; padding:.55rem .9rem; border-bottom:2px solid #e2e8f0; z-index:1; }
+    .derv-table td { padding:.5rem .9rem; font-size:.83rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+    .derv-table tr:hover td { background:#f0f9ff; }
+    .derv-table tr.row-disabled td { opacity:.4; }
+    .cat-badge { padding:.2rem .6rem; border-radius:10px; font-size:.7rem; font-weight:600; background:#f1f5f9; color:#64748b; }
+
+    /* Sonuçlar */
+    .result-summary { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:.75rem; }
+    .sum-pill { padding:.45rem 1rem; border-radius:20px; font-size:.82rem; font-weight:700; }
+    .sum-pill.total  { background:#ede9fe; color:#5b21b6; }
+    .sum-pill.ok     { background:#dcfce7; color:#166534; }
+    .sum-pill.err    { background:#fee2e2; color:#991b1b; }
+    .sum-pill.dur    { background:#fef9c3; color:#713f12; }
+
+    .derv-result { border:1.5px solid #e2e8f0; border-radius:12px; margin-bottom:.6rem; overflow:hidden; transition:border-color .2s; }
+    .derv-result.ok  { border-color:#86efac; }
+    .derv-result.err { border-color:#fca5a5; }
+    .derv-result-header {
+        display:flex; align-items:center; gap:.6rem; padding:.65rem 1rem; cursor:pointer;
+        background:#f8fafc; transition:background .15s; user-select:none;
+    }
+    .derv-result.ok  .derv-result-header { background:#f0fdf4; }
+    .derv-result.err .derv-result-header { background:#fef2f2; }
+    .derv-result-header:hover { filter:brightness(.97); }
+    .rc-badge { padding:.2rem .55rem; border-radius:8px; font-size:.72rem; font-weight:700; font-family:monospace; }
+    .rc-0  { background:#dcfce7; color:#166534; }
+    .rc-no { background:#fee2e2; color:#991b1b; }
+    .rc-to { background:#fef3c7; color:#92400e; }
+    .dur-badge { font-size:.72rem; color:#94a3b8; margin-left:auto; }
+    .chevron { transition:transform .2s; color:#94a3b8; font-size:.75rem; }
+    .derv-result-body { display:none; border-top:1px solid #e2e8f0; }
+    .derv-result-body.show { display:block; }
+    .out-box { background:#0f172a; color:#e2e8f0; padding:.9rem 1rem; font-size:.75rem; font-family:'Fira Code',monospace,monospace; white-space:pre-wrap; overflow-x:auto; max-height:240px; overflow-y:auto; line-height:1.5; }
+    .err-box { background:#2d1b1b; color:#fca5a5; padding:.6rem 1rem; font-size:.74rem; font-family:monospace; white-space:pre-wrap; border-top:1px solid #3d1f1f; }
+
+    .spinner { display:inline-block; width:16px; height:16px; border:2.5px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    #runBtn { min-width:160px; }
+    .prog-bar-wrap { height:6px; background:#e2e8f0; border-radius:10px; overflow:hidden; margin-top:.4rem; display:none; }
+    .prog-bar { height:100%; border-radius:10px; background:linear-gradient(90deg,var(--brand),var(--accent)); transition:width .3s; width:0%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+  <!-- SOL: Komut + Hedef Seçimi -->
+  <div class="col-xl-5">
+
+    <!-- Hazır Komutlar -->
+    <div class="form-card">
+      <div class="fc-header"><i class="fas fa-bolt"></i> Hazır Komutlar</div>
+      <div class="fc-body">
+        <div class="d-flex flex-wrap gap-2">
+          {% for k in on_komutlar %}
+          <span class="cmd-chip" data-komut="{{ k.komut }}">{{ k.label }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Komut Girişi -->
+    <div class="form-card">
+      <div class="fc-header"><i class="fas fa-terminal"></i> Komut</div>
+      <div class="fc-body">
+        <textarea id="komut" class="form-control form-control-sm" rows="3"
+                  placeholder="git status --short&#10;python3 main.py&#10;cat README.md | head -10"
+                  style="font-family:monospace; font-size:.85rem; resize:vertical;"></textarea>
+        <div class="d-flex align-items-center gap-3 mt-2">
+          <label class="form-label mb-0 small fw-600">Timeout (sn):</label>
+          <input type="number" id="timeout" value="30" min="5" max="120" class="form-control form-control-sm" style="width:80px;">
+          <button id="runBtn" class="btn btn-brand ms-auto">
+            <i class="fas fa-play me-1"></i> Çalıştır
+          </button>
+        </div>
+        <div class="prog-bar-wrap" id="progWrap">
+          <div class="prog-bar" id="progBar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat -->
+    <div id="summaryArea" style="display:none;" class="form-card">
+      <div class="fc-header"><i class="fas fa-chart-bar"></i> Özet</div>
+      <div class="fc-body">
+        <div class="result-summary" id="summaryPills"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SAĞ: Derviş Seçimi -->
+  <div class="col-xl-7">
+    <div class="form-card" style="margin-bottom:0">
+      <div class="fc-header">
+        <i class="fas fa-users"></i> Dervişler
+        <div class="ms-auto d-flex gap-2 align-items-center">
+          <select id="catFilter" class="form-select form-select-sm" style="width:auto;font-size:.78rem;">
+            <option value="">Tüm Kategoriler</option>
+            {% for c in categories %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-outline-brand btn-sm" onclick="selectAll(true)">Tümünü Seç</button>
+          <button class="btn btn-outline-brand btn-sm" onclick="selectAll(false)">Temizle</button>
+        </div>
+      </div>
+      <div class="fc-body" style="padding:.75rem;">
+        <div class="derv-table-wrap">
+          <table class="derv-table">
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="chkAll" checked title="Tümünü seç/kaldır"></th>
+                <th>Proje</th>
+                <th>Kategori</th>
+                <th>Durum</th>
+              </tr>
+            </thead>
+            <tbody id="dervTable">
+              {% for d in dervish_list %}
+              <tr class="derv-row{% if not d.exists %} row-disabled{% endif %}"
+                  data-name="{{ d.name }}" data-cat="{{ d.category }}" data-exists="{{ 'true' if d.exists else 'false' }}">
+                <td>
+                  <input type="checkbox" class="derv-chk" value="{{ d.name }}"
+                         {% if d.exists %}checked{% endif %}
+                         {% if not d.exists %}disabled title="Klasör mevcut değil"{% endif %}>
+                </td>
+                <td>
+                  <span class="fw-600" style="color:#1e293b">{{ d.gorunen_ad }}</span>
+                  <br><span class="text-muted" style="font-size:.7rem;">{{ d.name }}</span>
+                </td>
+                <td><span class="cat-badge">{{ d.category }}</span></td>
+                <td>
+                  {% if d.status == 'production' %}
+                    <span class="badge-status badge-production">production</span>
+                  {% elif d.status == 'development' %}
+                    <span class="badge-status badge-development">development</span>
+                  {% elif not d.exists %}
+                    <span class="badge-status badge-unknown" style="background:#fee2e2;color:#991b1b;">klasör yok</span>
+                  {% else %}
+                    <span class="badge-status badge-unknown">{{ d.status }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-2 text-muted" style="font-size:.75rem;">
+          <span id="selectedCount">0</span> Derviş seçili
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SONUÇLAR -->
+<div id="resultsSection" style="display:none;" class="mt-3">
+  <div class="form-card">
+    <div class="fc-header">
+      <i class="fas fa-list-alt"></i> Sonuçlar
+      <span class="ms-2" id="resultKomutBadge" style="font-family:monospace;font-size:.78rem;opacity:.7;"></span>
+      <button class="btn btn-sm ms-auto" style="background:rgba(255,255,255,.1);color:#fff;font-size:.75rem;border-radius:8px;" onclick="expandAll(true)">Tümünü Aç</button>
+      <button class="btn btn-sm ms-1" style="background:rgba(255,255,255,.1);color:#fff;font-size:.75rem;border-radius:8px;" onclick="expandAll(false)">Tümünü Kapat</button>
+    </div>
+    <div class="fc-body" style="padding:.75rem;">
+      <div id="resultsList"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Hazır komut chip'leri ──
+document.querySelectorAll('.cmd-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('.cmd-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        document.getElementById('komut').value = chip.dataset.komut;
+    });
+});
+
+// Textarea'ya yazılınca chip aktifliği kaldır
+document.getElementById('komut').addEventListener('input', () => {
+    document.querySelectorAll('.cmd-chip').forEach(c => c.classList.remove('active'));
+});
+
+// ── Kategori filtresi ──
+document.getElementById('catFilter').addEventListener('change', function() {
+    const cat = this.value;
+    document.querySelectorAll('.derv-row').forEach(row => {
+        if (!cat || row.dataset.cat === cat) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    updateCount();
+});
+
+// ── Tümünü Seç/Kaldır ──
+document.getElementById('chkAll').addEventListener('change', function() {
+    selectAll(this.checked);
+});
+
+function selectAll(checked) {
+    document.querySelectorAll('.derv-chk:not([disabled])').forEach(chk => {
+        // Sadece görünenleri etkile
+        const row = chk.closest('.derv-row');
+        if (row && row.style.display !== 'none') {
+            chk.checked = checked;
+        }
+    });
+    document.getElementById('chkAll').checked = checked;
+    updateCount();
+}
+
+document.querySelectorAll('.derv-chk').forEach(chk => {
+    chk.addEventListener('change', updateCount);
+});
+
+function updateCount() {
+    const n = document.querySelectorAll('.derv-chk:checked').length;
+    document.getElementById('selectedCount').textContent = n;
+}
+updateCount();
+
+// ── Çalıştır ──
+document.getElementById('runBtn').addEventListener('click', async () => {
+    const komut = document.getElementById('komut').value.trim();
+    if (!komut) { alert('Lütfen bir komut girin.'); return; }
+
+    const secili = Array.from(document.querySelectorAll('.derv-chk:checked')).map(c => c.value);
+    if (!secili.length) { alert('Lütfen en az bir Derviş seçin.'); return; }
+
+    const timeout = parseInt(document.getElementById('timeout').value) || 30;
+
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Çalışıyor...';
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('summaryArea').style.display = 'none';
+    document.getElementById('progWrap').style.display = 'block';
+    animProg();
+
+    try {
+        const res = await fetch('/api/calistir', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({komut, dervishler: secili, timeout}),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+            alert('Hata: ' + (data.error || 'Bilinmeyen hata.'));
+            return;
+        }
+        renderResults(data);
+    } catch(e) {
+        alert('Ağ hatası: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play me-1"></i> Çalıştır';
+        document.getElementById('progWrap').style.display = 'none';
+        document.getElementById('progBar').style.width = '0%';
+    }
+});
+
+function animProg() {
+    const bar = document.getElementById('progBar');
+    let w = 0;
+    const iv = setInterval(() => {
+        w = Math.min(w + Math.random() * 8, 90);
+        bar.style.width = w + '%';
+        if (!document.getElementById('runBtn').disabled) { clearInterval(iv); bar.style.width = '100%'; }
+    }, 200);
+}
+
+// ── Sonuçları Render Et ──
+function renderResults(data) {
+    // Özet
+    const totalDur = data.results.reduce((s, r) => s + r.duration, 0).toFixed(1);
+    document.getElementById('summaryPills').innerHTML = `
+        <span class="sum-pill total">🔢 Toplam: ${data.toplam}</span>
+        <span class="sum-pill ok">✅ Başarılı: ${data.basarili}</span>
+        ${data.hatali ? `<span class="sum-pill err">❌ Hatalı: ${data.hatali}</span>` : ''}
+        <span class="sum-pill dur">⏱ Toplam süre: ${totalDur}s</span>
+    `;
+    document.getElementById('summaryArea').style.display = 'block';
+
+    // Sonuç listesi
+    document.getElementById('resultKomutBadge').textContent = '$ ' + data.komut;
+    const list = document.getElementById('resultsList');
+    list.innerHTML = '';
+
+    // Hatalıları önce göster
+    const sorted = [...data.results].sort((a, b) => (b.ok === a.ok) ? 0 : a.ok ? 1 : -1);
+
+    sorted.forEach(r => {
+        const cls = r.ok ? 'ok' : 'err';
+        let rcClass = r.returncode === 0 ? 'rc-0' : r.returncode === -1 ? 'rc-to' : 'rc-no';
+        const hasOut = r.stdout.trim().length > 0;
+        const hasErr = r.stderr.trim().length > 0;
+
+        const div = document.createElement('div');
+        div.className = `derv-result ${cls}`;
+        div.innerHTML = `
+            <div class="derv-result-header" onclick="toggleResult(this)">
+                <span style="font-size:1rem">${r.ok ? '✅' : '❌'}</span>
+                <span class="fw-600" style="font-size:.88rem; color:#1e293b">${escHtml(r.gorunen_ad)}</span>
+                <span class="text-muted" style="font-size:.73rem">${escHtml(r.name)}</span>
+                <span class="rc-badge ${rcClass} ms-1">rc:${r.returncode}</span>
+                <span class="dur-badge">${r.duration}s</span>
+                <i class="fas fa-chevron-down chevron ms-2"></i>
+            </div>
+            <div class="derv-result-body${r.ok && !hasErr ? '' : ' show'}">
+                ${hasOut ? `<div class="out-box">${escHtml(r.stdout)}</div>` : '<div class="out-box" style="color:#475569;font-style:italic">(çıktı yok)</div>'}
+                ${hasErr ? `<div class="err-box">${escHtml(r.stderr)}</div>` : ''}
+            </div>
+        `;
+        list.appendChild(div);
+    });
+
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('resultsSection').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function toggleResult(header) {
+    const body = header.nextElementSibling;
+    const chev = header.querySelector('.chevron');
+    body.classList.toggle('show');
+    chev.style.transform = body.classList.contains('show') ? 'rotate(180deg)' : '';
+}
+
+function expandAll(open) {
+    document.querySelectorAll('.derv-result-body').forEach(b => {
+        if (open) b.classList.add('show'); else b.classList.remove('show');
+    });
+    document.querySelectorAll('.chevron').forEach(c => {
+        c.style.transform = open ? 'rotate(180deg)' : '';
+    });
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Çeyiz Hazırla — Emare Dashboard{% endblock %}
+{% block page_title %}🎁 Çeyiz <span class="highlight">Hazırla</span>{% endblock %}
+{% block page_subtitle %}Yeni bir Emare projesi için tam donanımlı çeyiz oluştur{% endblock %}
+
+{% block head %}
+<style>
+    .sablon-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:.75rem; }
+    .sablon-card {
+        border:2px solid #e2e8f0; border-radius:14px; padding:1rem .8rem; cursor:pointer;
+        text-align:center; background:#fff; transition:all .2s; user-select:none;
+    }
+    .sablon-card:hover { border-color:var(--brand); background:#f0f9ff; transform:translateY(-2px); box-shadow:0 4px 14px rgba(14,165,233,.12); }
+    .sablon-card.selected { border-color:var(--accent); background:linear-gradient(135deg,#ede9fe,#e0f2fe); box-shadow:0 4px 16px rgba(99,102,241,.2); }
+    .sablon-icon { font-size:1.8rem; display:block; margin-bottom:.4rem; }
+    .sablon-label { font-size:.8rem; font-weight:700; color:#1e293b; }
+    .sablon-desc  { font-size:.72rem; color:#64748b; margin-top:.25rem; }
+    .sablon-card input[type=radio] { display:none; }
+
+    .form-card { background:#fff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .form-card .fc-header { padding:1rem 1.5rem; background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:.5rem; }
+    .form-card .fc-body { padding:1.5rem; }
+
+    .result-box {
+        border-radius:14px; padding:1.25rem 1.5rem;
+        background:linear-gradient(135deg,#f0fdf4,#ecfdf5); border:1.5px solid #86efac;
+    }
+    .result-box.error { background:linear-gradient(135deg,#fef2f2,#fee2e2); border-color:#fca5a5; }
+    .result-step { display:flex; align-items:flex-start; gap:.5rem; padding:.28rem 0; font-size:.83rem; color:#334155; }
+    .result-step .ok   { color:#10b981; font-weight:700; }
+    .result-step .fail { color:#ef4444; font-weight:700; }
+
+    .log-box { background:#0f172a; color:#94a3b8; border-radius:12px; padding:1rem; font-size:.75rem; font-family:monospace; max-height:260px; overflow-y:auto; white-space:pre-wrap; }
+
+    .spinner { display:inline-block; width:18px; height:18px; border:2.5px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="ceyizForm" autocomplete="off">
+<div class="row g-3">
+
+  <!-- SOL KOLON: Şablon seçimi + Proje bilgileri -->
+  <div class="col-lg-7">
+
+    <!-- Şablon Seçimi -->
+    <div class="form-card mb-3">
+      <div class="fc-header"><i class="fas fa-layer-group"></i> Şablon Seç</div>
+      <div class="fc-body">
+        <div class="sablon-grid">
+          {% for key, s in sablonlar.items() %}
+          <label class="sablon-card{% if key == 'fullstack' %} selected{% endif %}" id="label-{{ key }}">
+            <input type="radio" name="sablon" value="{{ key }}"{% if key == 'fullstack' %} checked{% endif %}>
+            <span class="sablon-icon">{{ s.icon }}</span>
+            <div class="sablon-label">{{ s.label }}</div>
+            <div class="sablon-desc">{{ s.aciklama }}</div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Proje Bilgileri -->
+    <div class="form-card">
+      <div class="fc-header"><i class="fas fa-info-circle"></i> Proje Bilgileri</div>
+      <div class="fc-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-600 small">Klasör Adı <span class="text-danger">*</span></label>
+            <input type="text" id="ad" name="ad" class="form-control form-control-sm"
+                   placeholder="örn: emarenewproject" required
+                   pattern="[a-zA-Z0-9 _\-ğüşıöçĞÜŞİÖÇ]+"
+                   title="Harf, rakam, boşluk, tire veya alt çizgi">
+            <div class="form-text">Klasör adı olarak kullanılır (küçük harf önerilir)</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600 small">Görünen Ad</label>
+            <input type="text" id="gorunen_ad" name="gorunen_ad" class="form-control form-control-sm"
+                   placeholder="örn: Emare New Project">
+            <div class="form-text">Boş bırakılırsa klasör adından türetilir</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-600 small">Açıklama</label>
+            <textarea id="aciklama" name="aciklama" class="form-control form-control-sm" rows="2"
+                      placeholder="Projenin kısa açıklaması..."></textarea>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600 small">Kategori</label>
+            <select id="kategori" name="kategori" class="form-select form-select-sm">
+              {% for k in kategoriler %}
+              <option value="{{ k }}"{% if k == 'SaaS Platform' %} selected{% endif %}>{{ k }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-600 small">Port</label>
+            <input type="number" id="port" name="port" class="form-control form-control-sm"
+                   value="{{ next_port }}" min="1024" max="65535">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SAĞ KOLON: Özet + Çalıştır -->
+  <div class="col-lg-5">
+
+    <!-- Özet Kartı -->
+    <div class="form-card mb-3">
+      <div class="fc-header"><i class="fas fa-clipboard-list"></i> Özet</div>
+      <div class="fc-body" style="font-size:.85rem;">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><td class="text-muted" style="width:130px">Şablon</td><td id="sum-sablon" class="fw-600">🚀 Fullstack</td></tr>
+            <tr><td class="text-muted">Klasör</td><td id="sum-ad" class="fw-600 text-muted">—</td></tr>
+            <tr><td class="text-muted">Kategori</td><td id="sum-kategori" class="fw-600">SaaS Platform</td></tr>
+            <tr><td class="text-muted">Port</td><td id="sum-port" class="fw-600">{{ next_port }}</td></tr>
+          </tbody>
+        </table>
+        <div class="mt-3">
+          <div class="text-muted small mb-1">Çeyiz içeriği:</div>
+          <div style="font-size:.78rem; color:#475569; line-height:1.8;">
+            ✅ Proje klasörü &amp; alt dizinler<br>
+            ✅ Şablon dosyaları (main.py, requirements...)<br>
+            ✅ README, DOSYA_YAPISI, .gitignore<br>
+            ✅ Ekosistem kimlik dosyaları<br>
+            ✅ Hafıza dosyası + RBAC ağacı<br>
+            ✅ web_dizayn/ (renk paleti)<br>
+            ✅ Makefile + .editorconfig + test<br>
+            ✅ Derviş kaydı + Dergah bağlantısı<br>
+            ✅ projects.json kaydı
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Çalıştır Butonu -->
+    <button type="submit" class="btn btn-brand w-100 py-3 mb-3 fs-6" id="btnCeyiz">
+      <i class="fas fa-gift me-2"></i> Çeyiz Hazırla
+    </button>
+
+    <!-- Sonuç Alanı -->
+    <div id="resultArea" style="display:none;"></div>
+    <div id="logArea" style="display:none;" class="mt-3">
+      <div class="text-muted small mb-1">Terminal Çıktısı</div>
+      <div id="logBox" class="log-box"></div>
+    </div>
+
+  </div>
+</div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Şablon seçimi
+document.querySelectorAll('.sablon-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.sablon-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        const radio = card.querySelector('input[type=radio]');
+        radio.checked = true;
+        updateSummary();
+    });
+});
+
+const sablonMeta = {
+    {% for key, s in sablonlar.items() %}
+    '{{ key }}': { label: '{{ s.icon }} {{ s.label }}' },
+    {% endfor %}
+};
+
+function updateSummary() {
+    const ad = document.getElementById('ad').value || '—';
+    const sablon = document.querySelector('input[name=sablon]:checked')?.value || '';
+    const kategori = document.getElementById('kategori').value;
+    const port = document.getElementById('port').value;
+    document.getElementById('sum-ad').textContent = ad;
+    document.getElementById('sum-sablon').textContent = sablonMeta[sablon]?.label || sablon;
+    document.getElementById('sum-kategori').textContent = kategori;
+    document.getElementById('sum-port').textContent = port;
+}
+
+['ad','gorunen_ad','kategori','port'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateSummary);
+});
+
+// Auto-fill görünen ad
+document.getElementById('ad').addEventListener('input', function() {
+    const ga = document.getElementById('gorunen_ad');
+    if (!ga._touched) {
+        ga.value = this.value.replace(/[-_]/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+    updateSummary();
+});
+document.getElementById('gorunen_ad').addEventListener('input', function() {
+    this._touched = !!this.value;
+});
+
+// Form gönder
+document.getElementById('ceyizForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnCeyiz');
+    const resultArea = document.getElementById('resultArea');
+    const logArea = document.getElementById('logArea');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Hazırlanıyor...';
+    resultArea.style.display = 'none';
+    logArea.style.display = 'none';
+
+    const payload = {
+        ad:         document.getElementById('ad').value.trim().toLowerCase(),
+        gorunen_ad: document.getElementById('gorunen_ad').value.trim(),
+        aciklama:   document.getElementById('aciklama').value.trim(),
+        sablon:     document.querySelector('input[name=sablon]:checked')?.value || 'bos',
+        kategori:   document.getElementById('kategori').value,
+        port:       parseInt(document.getElementById('port').value) || 8000,
+    };
+
+    try {
+        const res = await fetch('/api/ceyiz', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+            const sonuc = data.sonuc || {};
+            const adimlar = sonuc.adimlar || [];
+            let html = `<div class="result-box">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="font-size:1.5rem">🎉</span>
+                    <div>
+                        <div class="fw-700" style="color:#166534">Çeyiz tamamlandı!</div>
+                        <div class="text-muted" style="font-size:.8rem">${sonuc.yol || ''}</div>
+                    </div>
+                </div>`;
+            adimlar.forEach(a => {
+                const icon = a.durum === 'ok' ? '<span class="ok">✓</span>' : '<span class="fail">✗</span>';
+                html += `<div class="result-step">${icon} ${escHtml(a.mesaj)}</div>`;
+            });
+            html += `</div>`;
+            resultArea.innerHTML = html;
+        } else {
+            const errs = (data.errors || ['Bilinmeyen hata.']).join('<br>');
+            resultArea.innerHTML = `<div class="result-box error">
+                <div class="fw-700 text-danger mb-1"><i class="fas fa-exclamation-circle me-1"></i>Hata</div>
+                <div style="font-size:.85rem">${errs}</div>
+            </div>`;
+        }
+        resultArea.style.display = 'block';
+
+        if (data.log) {
+            document.getElementById('logBox').textContent = data.log;
+            logArea.style.display = 'block';
+        }
+    } catch(err) {
+        resultArea.innerHTML = `<div class="result-box error"><b>Ağ hatası:</b> ${err.message}</div>`;
+        resultArea.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-gift me-2"></i> Çeyiz Hazırla';
+    }
+});
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+updateSummary();
+</script>
+{% endblock %}

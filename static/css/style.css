@@ -1,0 +1,6 @@
+body { background: #f8fafc; }
+.sidebar { box-shadow: 2px 0 8px rgba(0,0,0,0.04); }
+.card { border-radius: 1rem; }
+.table thead { background: #f0f9ff; }
+.badge.bg-success { background: #10b981 !important; }
+.badge.bg-danger { background: #ef4444 !important; }

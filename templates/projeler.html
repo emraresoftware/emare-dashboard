@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Projeler - Emare Dashboard{% endblock %}
+{% block page_title %}Projeler{% endblock %}
+{% block page_subtitle %}Tüm kayıtlı projeler ({{ projects|length }}){% endblock %}
+{% block header_actions %}
+<a href="/" class="btn btn-outline-brand"><i class="fas fa-arrow-left me-1"></i> Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<!-- FİLTRE BARI -->
+<div class="data-card mb-4">
+    <div class="p-3 d-flex gap-2 flex-wrap align-items-center">
+        <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Proje ara..." style="max-width:260px;border-radius:10px;">
+        <select id="statusFilter" class="form-select form-select-sm" style="max-width:160px;border-radius:10px;">
+            <option value="">Tüm Durumlar</option>
+            <option value="production">Production</option>
+            <option value="development">Development</option>
+            <option value="ready">Ready</option>
+        </select>
+        <select id="categoryFilter" class="form-select form-select-sm" style="max-width:180px;border-radius:10px;">
+            <option value="">Tüm Kategoriler</option>
+            {% set cats = [] %}
+            {% for p in projects %}
+                {% if p.category not in cats %}
+                    {% if cats.append(p.category) %}{% endif %}
+                    <option value="{{ p.category }}">{{ p.category }}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+        <span id="resultCount" class="ms-auto" style="color:#64748b;font-size:.82rem;"></span>
+    </div>
+</div>
+
+<!-- PROJE TABLOSU -->
+<div class="data-card">
+    <div class="card-header-custom">
+        <span><i class="fas fa-project-diagram me-2"></i>Proje Listesi</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="projectTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Proje</th>
+                    <th>Kategori</th>
+                    <th>Teknoloji</th>
+                    <th>Durum</th>
+                    <th>Derviş</th>
+                    <th>Dosyalar</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in projects %}
+                <tr data-name="{{ p.name|lower }}" data-status="{{ p.status }}" data-category="{{ p.category }}">
+                    <td style="color:#94a3b8;font-size:.82rem;">{{ loop.index }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-size:1.2rem;">{{ p.icon }}</span>
+                            <div>
+                                <div style="font-weight:600;">{{ p.name }}</div>
+                                <div style="font-size:.73rem;color:#94a3b8;"><code>{{ p._owner }}</code></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span style="font-size:.82rem;">{{ p.category }}</span></td>
+                    <td>
+                        {% if p.tech %}
+                            {% for t in p.tech[:3] %}
+                            <span style="background:#f1f5f9;padding:.15rem .5rem;border-radius:6px;font-size:.72rem;color:#475569;margin-right:2px;">{{ t }}</span>
+                            {% endfor %}
+                            {% if p.tech|length > 3 %}
+                            <span style="font-size:.7rem;color:#94a3b8;">+{{ p.tech|length - 3 }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color:#cbd5e1;font-size:.8rem;">-</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge-status badge-{{ p.status }}">{{ p.status|capitalize }}</span></td>
+                    <td>
+                        {% if p._has_dervish %}
+                            <span class="badge bg-success" style="font-size:.7rem;border-radius:20px;padding:.3rem .6rem;"><i class="fas fa-check"></i></span>
+                        {% else %}
+                            <span class="badge bg-danger" style="font-size:.7rem;border-radius:20px;padding:.3rem .6rem;"><i class="fas fa-times"></i></span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if p._stats.exists %}
+                        <span style="font-size:.8rem;color:#64748b;" title="{{ p._stats.files }} dosya, {{ p._stats.dirs }} klasör">
+                            <i class="fas fa-file me-1"></i>{{ p._stats.files }}
+                            <i class="fas fa-folder ms-2 me-1"></i>{{ p._stats.dirs }}
+                        </span>
+                        {% else %}
+                        <span style="color:#cbd5e1;font-size:.8rem;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/proje/{{ p.id }}" class="btn btn-outline-brand btn-sm" style="font-size:.73rem;padding:.25rem .6rem;">
+                            <i class="fas fa-eye me-1"></i>Detay
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const search = document.getElementById('searchInput');
+const statusF = document.getElementById('statusFilter');
+const categoryF = document.getElementById('categoryFilter');
+const rows = document.querySelectorAll('#projectTable tbody tr');
+const countEl = document.getElementById('resultCount');
+
+function filter() {
+    const q = search.value.toLowerCase();
+    const s = statusF.value;
+    const c = categoryF.value;
+    let visible = 0;
+    rows.forEach(r => {
+        const matchName = !q || r.dataset.name.includes(q);
+        const matchStatus = !s || r.dataset.status === s;
+        const matchCat = !c || r.dataset.category === c;
+        const show = matchName && matchStatus && matchCat;
+        r.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    countEl.textContent = visible + ' / ' + rows.length + ' proje';
+}
+search.addEventListener('input', filter);
+statusF.addEventListener('change', filter);
+categoryF.addEventListener('change', filter);
+filter();
+</script>
+{% endblock %}

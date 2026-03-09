@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Dergah - Emare Dashboard{% endblock %}
+{% block page_title %}Dergah{% endblock %}
+{% block page_subtitle %}Tüm dervişlerin buluştuğu ortak alan — {{ links|length }} bağlantı{% endblock %}
+{% block header_actions %}
+<a href="/" class="btn btn-outline-brand"><i class="fas fa-arrow-left me-1"></i> Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<!-- STAT -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon purple"><i class="fas fa-mosque"></i></div>
+                <div>
+                    <div class="stat-value">{{ links|length }}</div>
+                    <div class="stat-label">Dergah Bağlantısı</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DERGAH GRID -->
+<div class="data-card mb-4">
+    <div class="card-header-custom">
+        <span><i class="fas fa-mosque me-2"></i>Dergah Kısayolları</span>
+        <input type="text" id="dergahSearch" class="form-control form-control-sm"
+               placeholder="Ara..." style="max-width:200px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;">
+    </div>
+    <div class="p-3">
+        <div class="row g-3" id="dergahGrid">
+            {% for link in links %}
+            <div class="col-md-4 col-sm-6 dergah-item" data-name="{{ link.name|lower }}">
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.2rem;transition:all .3s;cursor:default;"
+                     onmouseover="this.style.boxShadow='0 6px 20px rgba(99,102,241,.12)';this.style.transform='translateY(-2px)'"
+                     onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.9rem;">
+                            {{ link.name[0]|upper }}
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ link.name }}</div>
+                            <div style="font-size:.72rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ link.target }}">
+                                <i class="fas fa-arrow-right me-1"></i>{{ link.target.split('/')[-1] }}
+                            </div>
+                        </div>
+                        <i class="fas fa-link" style="color:#c4b5fd;font-size:.8rem;"></i>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- PATH TABLE -->
+<div class="data-card">
+    <div class="card-header-custom">
+        <span><i class="fas fa-list me-2"></i>Detaylı Liste</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Kısayol Adı</th>
+                    <th>Hedef Yol</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in links %}
+                <tr>
+                    <td style="color:#94a3b8;font-size:.82rem;">{{ loop.index }}</td>
+                    <td style="font-weight:600;font-size:.88rem;">{{ link.name }}</td>
+                    <td><code style="font-size:.75rem;">{{ link.target }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('dergahSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.dergah-item').forEach(el => {
+        el.style.display = !q || el.dataset.name.includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

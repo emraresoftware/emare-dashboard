@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Emare Proje Yönetimi{% endblock %}
+{% block page_title %}Emare <span class="highlight">Dashboard</span>{% endblock %}
+{% block page_subtitle %}Hoş geldin! Tüm projeler ve derviş sistemi burada.{% endblock %}
+{% block header_actions %}
+<span style="color:#94a3b8;font-size:.82rem;"><i class="fas fa-clock"></i> {{ now.strftime('%d %b %Y, %H:%M') }}</span>
+{% endblock %}
+
+{% block content %}
+<!-- STAT CARDS -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon blue"><i class="fas fa-project-diagram"></i></div>
+                <div>
+                    <div class="stat-value">{{ projects|length }}</div>
+                    <div class="stat-label">Kayıtlı Proje</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon green"><i class="fas fa-users"></i></div>
+                <div>
+                    <div class="stat-value">{{ dervish_folders|length }}</div>
+                    <div class="stat-label">Derviş Klasörü</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon purple"><i class="fas fa-mosque"></i></div>
+                <div>
+                    <div class="stat-value">{{ dergah_links|length }}</div>
+                    <div class="stat-label">Dergah Bağlantısı</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon {{ 'red' if missing_dervish|length > 0 else 'amber' }}">
+                    <i class="fas fa-{{ 'exclamation-triangle' if missing_dervish|length > 0 else 'check-circle' }}"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ missing_dervish|length }}</div>
+                    <div class="stat-label">Eksik Derviş</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if missing_dervish %}
+<div class="alert alert-danger alert-bar d-flex align-items-center justify-content-between mb-4" style="background:#fef2f2;color:#991b1b;">
+    <div><i class="fas fa-exclamation-circle me-2"></i><strong>Eksik Dervişler:</strong> {{ missing_dervish|join(', ') }}</div>
+    <button class="btn btn-brand btn-sm" onclick="fixDervish()"><i class="fas fa-wrench me-1"></i> Otomatik Düzelt</button>
+</div>
+{% endif %}
+
+<!-- DURUM & KATEGORİ -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="data-card">
+            <div class="card-header-custom"><i class="fas fa-signal me-2"></i>Durum Dağılımı</div>
+            <div class="p-3">
+                {% for s, c in status_counts.items() %}
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span><span class="badge-status badge-{{ s }}">{{ s|capitalize }}</span></span>
+                    <div class="d-flex align-items-center gap-2" style="flex:1;margin:0 1rem;">
+                        <div style="flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;">
+                            <div style="width:{{ (c / projects|length * 100)|round }}%;height:100%;background:linear-gradient(90deg,var(--brand),var(--accent));border-radius:4px;"></div>
+                        </div>
+                    </div>
+                    <span style="font-weight:700;color:#0f172a;">{{ c }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="data-card">
+            <div class="card-header-custom"><i class="fas fa-tags me-2"></i>Kategori Dağılımı</div>
+            <div class="p-3">
+                {% for cat, c in category_counts.items() %}
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span style="font-size:.88rem;font-weight:500;">{{ cat }}</span>
+                    <div class="d-flex align-items-center gap-2" style="flex:1;margin:0 1rem;">
+                        <div style="flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;">
+                            <div style="width:{{ (c / projects|length * 100)|round }}%;height:100%;background:linear-gradient(90deg,#10b981,#34d399);border-radius:4px;"></div>
+                        </div>
+                    </div>
+                    <span style="font-weight:700;color:#0f172a;">{{ c }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PROJE TABLOSU -->
+<div class="data-card mb-4">
+    <div class="card-header-custom">
+        <span><i class="fas fa-list me-2"></i>Projeler ({{ projects|length }})</span>
+        <a href="/projeler" class="btn btn-outline-brand btn-sm" style="border-color:rgba(255,255,255,.3);color:#fff;">Tümünü Gör <i class="fas fa-arrow-right ms-1"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Proje</th>
+                    <th>Kategori</th>
+                    <th>Durum</th>
+                    <th>Derviş</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in projects[:10] %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-size:1.1rem;">{{ p.icon }}</span>
+                            <div>
+                                <div style="font-weight:600;">{{ p.name }}</div>
+                                <div style="font-size:.75rem;color:#94a3b8;">{{ p.path.split('/')[-1] }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span style="font-size:.82rem;">{{ p.category }}</span></td>
+                    <td><span class="badge-status badge-{{ p.status }}">{{ p.status|capitalize }}</span></td>
+                    <td>
+                        {% set owner = p.path.split('/')[-1] %}
+                        {% if (owner ~ ' Dervishi') in dervish_folders %}
+                            <span class="badge bg-success" style="font-size:.7rem;border-radius:20px;padding:.3rem .6rem;"><i class="fas fa-check me-1"></i>Var</span>
+                        {% else %}
+                            <span class="badge bg-danger" style="font-size:.7rem;border-radius:20px;padding:.3rem .6rem;"><i class="fas fa-times me-1"></i>Yok</span>
+                        {% endif %}
+                    </td>
+                    <td><a href="/proje/{{ p.id }}" class="btn btn-outline-brand btn-sm" style="font-size:.75rem;padding:.3rem .7rem;">Detay</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if projects|length > 10 %}
+    <div class="p-3 text-center border-top">
+        <a href="/projeler" class="btn btn-brand btn-sm">+ {{ projects|length - 10 }} proje daha <i class="fas fa-arrow-right ms-1"></i></a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fixDervish() {
+    if (!confirm('Eksik derviş klasörleri otomatik oluşturulsun mu?')) return;
+    fetch('/api/fix-dervish', {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+        alert(d.count + ' derviş oluşturuldu: ' + (d.created.join(', ') || 'yok'));
+        location.reload();
+    })
+    .catch(e => alert('Hata: ' + e));
+}
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Dervişler - Emare Dashboard{% endblock %}
+{% block page_title %}Dervişler{% endblock %}
+{% block page_subtitle %}EmareAPI Derviş sistemi — {{ dervisler|length }} derviş{% endblock %}
+{% block header_actions %}
+<a href="/" class="btn btn-outline-brand"><i class="fas fa-arrow-left me-1"></i> Dashboard</a>
+{% endblock %}
+
+{% block content %}
+<!-- STAT BAR -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon green"><i class="fas fa-users"></i></div>
+                <div>
+                    <div class="stat-value">{{ dervisler|length }}</div>
+                    <div class="stat-label">Toplam Derviş</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon blue"><i class="fas fa-id-card"></i></div>
+                <div>
+                    <div class="stat-value">{{ dervisler|selectattr('has_profil')|list|length }}</div>
+                    <div class="stat-label">Profil Mevcut</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon purple"><i class="fas fa-link"></i></div>
+                <div>
+                    <div class="stat-value">{{ dervisler|selectattr('has_shortcut')|list|length }}</div>
+                    <div class="stat-label">Kısayol Mevcut</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DERVİŞ LİSTESİ -->
+<div class="data-card">
+    <div class="card-header-custom">
+        <span><i class="fas fa-users me-2"></i>Derviş Listesi</span>
+        <input type="text" id="dervishSearch" class="form-control form-control-sm"
+               placeholder="Ara..." style="max-width:200px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;">
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="dervishTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Derviş Adı</th>
+                    <th>Profil</th>
+                    <th>Kısayol</th>
+                    <th>Hedef Proje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in dervisler %}
+                <tr data-name="{{ d.name|lower }}">
+                    <td style="color:#94a3b8;font-size:.82rem;">{{ loop.index }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#10b981,#34d399);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.82rem;">
+                                {{ d.name[0]|upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight:600;font-size:.9rem;">{{ d.name }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if d.has_profil %}
+                            <span class="badge bg-success" style="font-size:.7rem;border-radius:20px;padding:.3rem .65rem;"><i class="fas fa-check me-1"></i>Mevcut</span>
+                        {% else %}
+                            <span class="badge bg-danger" style="font-size:.7rem;border-radius:20px;padding:.3rem .65rem;"><i class="fas fa-times me-1"></i>Yok</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.has_shortcut %}
+                            <span class="badge bg-success" style="font-size:.7rem;border-radius:20px;padding:.3rem .65rem;"><i class="fas fa-check me-1"></i>Bağlı</span>
+                        {% else %}
+                            <span class="badge bg-danger" style="font-size:.7rem;border-radius:20px;padding:.3rem .65rem;"><i class="fas fa-times me-1"></i>Yok</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.target %}
+                            <code style="font-size:.75rem;">{{ d.target.split('/')[-1] }}</code>
+                        {% else %}
+                            <span style="color:#cbd5e1;">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('dervishSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#dervishTable tbody tr').forEach(r => {
+        r.style.display = !q || r.dataset.name.includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}
